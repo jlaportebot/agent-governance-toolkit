@@ -152,3 +152,15 @@ Nanvix
 reqwest
 requireapproval
 uncallable
+cloudevents
+cloudEvents
+CloudEvents
+datacontenttype
+otlp
+OTLP
+OtlpEventSink
+StdoutEventSink
+GovernanceEventSink
+SignedGovernanceEvent
+GovernanceEventCategory
+EventSink

@@ -22,6 +22,7 @@ pub mod audit;
 pub mod control_support;
 #[allow(dead_code)]
 pub mod governance_support;
+pub mod event_sink;
 pub mod identity;
 pub mod identity_support;
 pub mod integration_support;
@@ -36,6 +37,10 @@ pub mod trust_support;
 pub mod types;
 
 pub use audit::AuditLogger;
+pub use event_sink::{
+    GovernanceEventCategory, GovernanceEventSink, OtlpEventSink, SignedGovernanceEvent,
+    StdoutEventSink,
+};
 pub use control_support::{
     CircuitBreaker, CircuitState, ErrorBudget, HealthStatus, IncidentRecord, KillSwitch,
     KillSwitchDecision, KillSwitchEvent, KillSwitchReason, KillSwitchRegistry, KillSwitchScope,

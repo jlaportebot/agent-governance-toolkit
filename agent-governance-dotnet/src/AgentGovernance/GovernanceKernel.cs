@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation. Licensed under the MIT License.
 
 using AgentGovernance.Audit;
+using AgentGovernance.EventSink;
 using AgentGovernance.Hypervisor;
 using AgentGovernance.Integration;
 using AgentGovernance.Policy;
@@ -79,6 +80,21 @@ public sealed class GovernanceOptions
     /// Only used when <see cref="EnableCircuitBreaker"/> is <c>true</c>.
     /// </summary>
     public CircuitBreakerConfig? CircuitBreakerConfig { get; init; }
+
+    /// <summary>
+    /// Optional governance event sink for routing signed events to external
+    /// observability and enforcement backends (Defender, Sentinel, Splunk, etc.).
+    /// When set, all <see cref="AuditEmitter"/> events are forwarded to the sink
+    /// as signed <see cref="EventSink.SignedGovernanceEvent"/> envelopes.
+    /// When <c>null</c>, no external routing occurs.
+    /// </summary>
+    public IGovernanceEventSink? EventSink { get; init; }
+
+    /// <summary>
+    /// Optional HMAC-SHA256 signing key for governance events forwarded to
+    /// <see cref="EventSink"/>. When <c>null</c>, events are emitted unsigned.
+    /// </summary>
+    public byte[]? EventSigningKey { get; init; }
 }
 
 /// <summary>
@@ -171,6 +187,12 @@ public sealed class GovernanceKernel : IDisposable
     public bool AuditEnabled { get; }
 
     /// <summary>
+    /// The governance event sink for routing signed events to external backends.
+    /// <c>null</c> when no event sink was configured.
+    /// </summary>
+    public IGovernanceEventSink? EventSink { get; }
+
+    /// <summary>
     /// Initializes a new <see cref="GovernanceKernel"/> with optional configuration.
     /// Loads any policy files specified in <see cref="GovernanceOptions.PolicyPaths"/>.
     /// </summary>
@@ -209,12 +231,56 @@ public sealed class GovernanceKernel : IDisposable
 
         Middleware = new GovernanceMiddleware(PolicyEngine, AuditEmitter, RateLimiter, Metrics, Rings, InjectionDetector);
 
+        // Wire the event sink: forward every AuditEmitter event as a
+        // signed SignedGovernanceEvent to the configured external backend.
+        EventSink = opts.EventSink;
+        if (EventSink is not null)
+        {
+            var signingKey = opts.EventSigningKey;
+            AuditEmitter.OnAll(evt =>
+            {
+                var category = MapAuditEventToCategory(evt.Type);
+                var governanceEvent = SignedGovernanceEvent.Build(
+                    category,
+                    source: evt.AgentId,
+                    subject: evt.PolicyName ?? string.Empty,
+                    data: new Dictionary<string, object>(evt.Data)
+                    {
+                        ["sessionId"] = evt.SessionId,
+                        ["eventId"] = evt.EventId,
+                        ["timestamp"] = evt.Timestamp.ToString("O"),
+                    },
+                    signingKey: signingKey);
+
+                // Fire-and-forget: we don't block the audit pipeline on sink I/O.
+                _ = EventSink.EmitAsync(governanceEvent);
+            });
+        }
+
         // Load any initial policy files.
         foreach (var path in opts.PolicyPaths)
         {
             PolicyEngine.LoadYamlFile(path);
         }
     }
+
+    /// <summary>
+    /// Maps an <see cref="GovernanceEventType"/> to the corresponding
+    /// <see cref="GovernanceEventCategory"/> for the event sink.
+    /// </summary>
+    private static GovernanceEventCategory MapAuditEventToCategory(GovernanceEventType type) =>
+        type switch
+        {
+            GovernanceEventType.PolicyCheck => GovernanceEventCategory.PolicyDecision,
+            GovernanceEventType.PolicyViolation => GovernanceEventCategory.PolicyBreach,
+            GovernanceEventType.ToolCallBlocked => GovernanceEventCategory.ToolInvocation,
+            GovernanceEventType.TrustVerified => GovernanceEventCategory.IdentityAssertion,
+            GovernanceEventType.TrustFailed => GovernanceEventCategory.IdentityAssertion,
+            GovernanceEventType.AgentRegistered => GovernanceEventCategory.IdentityAssertion,
+            GovernanceEventType.CheckpointCreated => GovernanceEventCategory.SandboxEvent,
+            GovernanceEventType.DriftDetected => GovernanceEventCategory.AuditChain,
+            _ => GovernanceEventCategory.AuditChain,
+        };
 
     /// <summary>
     /// Loads a governance policy from a YAML file.

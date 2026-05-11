@@ -63,6 +63,20 @@ export {
   PolicyScope,
 } from './types';
 
+export {
+  GovernanceEventCategory,
+  StdoutEventSink,
+  OtlpEventSink,
+  buildGovernanceEvent,
+  verifyGovernanceEventSignature,
+  cloudEventType,
+} from './event-sink';
+export type {
+  SignedGovernanceEvent,
+  GovernanceEventSink,
+  OtlpEventSinkOptions,
+} from './event-sink';
+
 export type {
   AgentIdentityJSON,
   BackendDecision,
