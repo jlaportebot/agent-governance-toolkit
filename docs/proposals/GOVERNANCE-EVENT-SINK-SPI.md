@@ -130,6 +130,49 @@ Stronger out-of-process enforcement (Falco, Tetragon, Defender, EDR) is
 delegated to the customer's existing backend, which is exactly the layer it
 belongs in.
 
+## End-to-end flow and crash recovery
+
+```mermaid
+flowchart LR
+    subgraph A["Agent host"]
+        K[kernel + hypervisor] --> D[in-process<br/>dispatcher]
+        D --> SO[StdoutEventSink]
+        D --> OE["OtlpEventSink<br/>queue + local spool"]
+    end
+
+    SO --> J[stdout / journald]
+    OE -->|OTLP gRPC/HTTP| C
+
+    subgraph CH["Collector host (sidecar / daemonset)"]
+        C[otlp receiver] --> B[batch +<br/>persistent_queue]
+        B --> ED[datadog exporter]
+        B --> ES[splunk exporter]
+        B --> EA[azuremonitor exporter]
+    end
+
+    ED --> V1[Datadog]
+    ES --> V2[Splunk]
+    EA --> V3[Sentinel / Defender]
+```
+
+Two invariants make the pipeline safe across crashes:
+
+1. **At-least-once + idempotent on `(agent_id, sequence)`** — duplicates from
+   retries are harmless.
+2. **Signed, sequence-numbered, hash-chained envelope** — any gap, replay or
+   alteration is detectable at the sink.
+
+Failure modes:
+
+| Failure                       | Behavior                                                                                                                                |
+|-------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| Kernel crash                  | Sequence number is persisted with kernel state; emission resumes from the last seq on restart. SIEM detects gaps via the hash chain.    |
+| Sink queue full               | `audit` / `siem` block the emitter (fail-closed); `observability` / `debug` drop oldest and emit a `policy.breach` so the drop is seen. |
+| Network blip to Collector     | OTLP client retries with exponential backoff; on exhaustion spills to a local spool and replays on reconnect.                           |
+| Collector crash               | The `persistent_queue` extension survives restart; queued events flush on recovery.                                                     |
+| Vendor backend down           | Per-exporter retry queue in the Collector absorbs the outage; other exporters are unaffected.                                           |
+| Agent host dies entirely      | Local spool is gone. SIEM sees a sequence gap and missing heartbeat — high-severity alert (standard EDR silence-as-signal pattern).     |
+
 ## Where it lives
 
 - **Interface and envelope:** `agent-os` (kernel-level concern).
