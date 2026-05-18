@@ -54,7 +54,7 @@ from agent_control_plane.signals import AgentKernelPanic
 class DatasetQualitySnapshot:
     """
     Represents the quality state of a dataset at a point in time.
-    
+
     In production: sourced from dbt run results, Great Expectations,
     or a metadata catalog like Atlan or DataHub.
     """
@@ -84,7 +84,7 @@ class DatasetQualitySnapshot:
 class DataQualityRegistry:
     """
     Simulated data quality registry.
-    
+
     Mirrors the kind of metadata a dbt-based governance platform
     exposes at runtime: freshness threshold, quality score,
     failed test names, dataset owner.

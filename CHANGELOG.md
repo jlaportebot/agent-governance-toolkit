@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tutorials 48-51** - Intent Auth, Multi-Agent Policies, Decision BOM, Cost Governance (#1781-#1784)
 - **Rust quickstart** example (#1677)
 - **Korean README translation** (#1729)
+- Added a dbt-backed data quality evidence adapter example under `examples/data-quality-aware-governance/adapters/dbt/`, showing how dbt `run_results.json` output can be mapped into policy-readable evidence for AGT governance decisions.
 
 ### Fixed
 - **Decision BOM resilience** - source exceptions no longer crash reconstruction; partial BOM returned (#1786)
