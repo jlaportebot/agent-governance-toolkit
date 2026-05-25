@@ -37,6 +37,12 @@ bypassable
 bytecodes
 caas
 caplog
+ciphertext
+Errorf
+Fatalf
+omitempty
+Submatch
+Unmarshal
 capsys
 carloshvp
 carryforward
