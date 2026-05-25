@@ -72,6 +72,7 @@ dateutil
 davidequarracino
 dbt
 dearmor
+deidentified
 defi
 delenv
 deletecollection
@@ -102,8 +103,12 @@ evilpypi
 exfiltration
 expanduser
 fastapi
+<<<<<<< HEAD
+finalizer
+=======
 fernet
 Fernet
+>>>>>>> origin/main
 findall
 finditer
 FIPS
@@ -134,6 +139,7 @@ hasattr
 hashlib
 HEALTHCHECK
 healthz
+helpdesk
 hexdigest
 HMAC
 htek
@@ -157,6 +163,7 @@ jwkjwks
 kanish
 kata
 kayalopez
+kubeconfigs
 kevinkaylie
 keypair
 keypairs
@@ -213,9 +220,13 @@ noqa
 nostr
 npmjs
 numpy
+<<<<<<< HEAD
+oxycodone
+=======
 octo
 OpenAI
 OpenClaw
+>>>>>>> origin/main
 openshell
 ospo
 parseability
