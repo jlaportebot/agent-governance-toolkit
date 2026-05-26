@@ -448,9 +448,8 @@ public static partial class ProtocolFacets
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var result = new List<string>();
-        foreach (var up in FuncRe().Matches(query).Cast<Match>().Select(m => m.Groups[1].Value.ToUpperInvariant()))
+        foreach (var up in FuncRe().Matches(query).Cast<Match>().Select(m => m.Groups[1].Value.ToUpperInvariant()).Where(up => !SqlFunctionDenylist.Contains(up)))
         {
-            if (SqlFunctionDenylist.Contains(up)) continue;
             if (seen.Add(up)) result.Add(up);
         }
         return result;
