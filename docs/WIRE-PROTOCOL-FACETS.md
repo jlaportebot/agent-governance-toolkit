@@ -159,3 +159,49 @@ write rules like:
 
 See [`examples/policy-templates/wire-protocol-rules.yaml`](../examples/policy-templates/wire-protocol-rules.yaml)
 for a full set of example rules.
+
+## Language parity — Go
+
+The Go SDK exposes the same facet model in the `agentmesh` package:
+`FacetRegistry`, `DefaultRegistry()`, `ExtractProtocolFacets`,
+`ExtractSQLFacets`, `ExtractK8sFacets`. `PolicyEngine.Evaluate` calls
+the registry on a defensive copy of the caller's context map before rule
+matching, so callers only need to populate raw `sql`/`k8s` sub-maps —
+the caller's own map and its nested sub-maps are never mutated.
+
+```go
+import "github.com/microsoft/agent-governance-toolkit/agent-governance-golang/packages/agentmesh"
+
+engine := agentmesh.NewPolicyEngine([]agentmesh.PolicyRule{
+    {
+        Action: "db.exec",
+        Effect: agentmesh.Deny,
+        Conditions: map[string]any{
+            "sql.verb": map[string]any{"$in": []any{"DROP", "TRUNCATE", "DELETE"}},
+        },
+    },
+})
+
+decision := engine.Evaluate("db.exec", map[string]any{
+    "sql": map[string]any{"query": "DROP TABLE production"},
+})
+// decision == agentmesh.Deny
+
+// Register a custom protocol extractor:
+agentmesh.DefaultRegistry().Register("redis", func(sub map[string]any) map[string]any {
+    cmd, _ := sub["command"].(string)
+    return map[string]any{"verb": strings.ToUpper(cmd)}
+})
+```
+
+The Go SDK's existing condition matcher uses flat keys, so the facet
+extractor flattens `<key>.<field>` entries onto the top-level context
+(e.g. `sql.verb`, `k8s.namespace`). The set of fields and high-level
+decision outcomes are consistent with the Python implementation.
+
+> **SQL parser note.** The Go extractor uses a built-in regex tokenizer
+> that handles the common verb / target / function cases used by policy
+> rules. It is not a full SQL parser and will not catch every dialect-
+> specific construct; for high-assurance environments, register a custom
+> extractor via `agentmesh.DefaultRegistry().Register("sql", ...)`
+> backed by a real SQL parser.
