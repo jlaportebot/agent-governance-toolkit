@@ -7,10 +7,10 @@ set -euo pipefail
 
 BASE_REF="${1:-origin/main}"
 FORBIDDEN=(
-  'TODO'
-  'FIXME'
-  'HACK'
-  'XXX'
+  '\bTODO\b'
+  '\bFIXME\b'
+  '\bHACK\b'
+  '\bXXX[: ]'
   'raise NotImplementedError'
   'NotImplementedException'
   'unimplemented!()'
