@@ -33,11 +33,10 @@ own boundary. When cMCP emits a TRACE record, it supersedes AGT's software-only
 claim for that session. AGT's Phase 1 record is the baseline evidence for
 deployments that do not run inside a TEE.
 
-Subject identity: TRACE v0.1 requires a `spiffe://` URI in `subject`. AGT uses
-`did:mesh:` identities. For Phase 1, deployments configure `TRACE_AGENT_SVID`
-explicitly. A spec issue is filed against trace-spec to add DID support in
-TRACE v0.2 so that DID-native deployments do not require a parallel SPIFFE
-identity.
+Subject identity: TRACE v0.2 accepts both `spiffe://` and `did:` URIs in
+`subject` (agentrust-io/trace-spec#35, merged in trace-spec v0.2.0). AGT uses
+`did:mesh:` identities and emits them directly in `subject`. No parallel SPIFFE
+identity is required.
 
 ## Decision
 
@@ -48,8 +47,8 @@ AGT emits one TRACE v0.1 Trust Record per session, at session close, via a new
 
 - `eat_profile`: constant `"tag:agentrust.io,2026:trace-v0.1"`
 - `iat`: session-close Unix epoch seconds
-- `subject`: value of `TRACE_AGENT_SVID` config; fail-fast at startup if
-  `TRACE_EMIT=true` but the field is absent
+- `subject`: `agent_did` from the AGT session (e.g. `did:mesh:spiffe://...`),
+  valid per TRACE v0.2 which accepts `did:` URIs natively
 - `model`, `runtime`, `build_provenance`: config-injected; `runtime.platform`
   is `"software-only"` and `runtime.measurement` is zero-filled for Phase 1
 - `policy.bundle_hash`: SHA-256 of the Cedar policy bundle bytes, captured at
@@ -82,7 +81,8 @@ in parallel.
 **Config surface:**
 
 New top-level `trace:` config block with: `emit` (bool, default false),
-`agent_svid`, `output_path`, `endpoint`, `model`, `build_provenance`. Key
+`output_path`, `endpoint`, `model`, `build_provenance`. `subject` is derived
+from `agent_did` at session close -- no separate identity config needed. Key
 material via `TRACE_PRIVATE_KEY_PEM` env var only (never in config files).
 
 ## Consequences
@@ -100,9 +100,8 @@ material via `TRACE_PRIVATE_KEY_PEM` env var only (never in config files).
   TEE-measured `policy.bundle_hash` and a TEE-bound `cnf.jwk` that supersede
   AGT's software-only fields. The two records are linked by the shared
   `subject` SVID and `tool_transcript.hash`.
-- `did:mesh:` deployments must configure a parallel SPIFFE SVID for Phase 1.
-  This is resolved at the protocol level in TRACE v0.2 (filed as
-  agentrust-io/trace-spec#35).
+- `did:mesh:` identities are emitted directly in `subject` -- no SPIFFE SVID
+  required. TRACE v0.2 (agentrust-io/trace-spec#35) accepts `did:` natively.
 - EAT wire format is JWT for Phase 1. CBOR-COSE is deferred to a future ADR if
   constrained-device deployments require it.
 
