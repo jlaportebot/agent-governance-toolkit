@@ -1,3 +1,4 @@
+# Copyright (c) Microsoft Corporation. Licensed under the MIT License.
 """DeerFlow guardrail provider example backed by AGT policy and audit APIs."""
 
 from __future__ import annotations

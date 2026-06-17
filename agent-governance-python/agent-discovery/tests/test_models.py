@@ -1,3 +1,4 @@
+# Copyright (c) Microsoft Corporation. Licensed under the MIT License.
 """Tests for agent discovery data models."""
 
 from datetime import UTC, datetime

@@ -1,3 +1,4 @@
+# Copyright (c) Microsoft Corporation. Licensed under the MIT License.
 """Optional integration tests for the AGT provider through DeerFlow middleware.
 
 These tests do not start a DeerFlow agent or execute tools. They validate the

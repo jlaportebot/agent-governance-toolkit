@@ -1,3 +1,4 @@
+# Copyright (c) Microsoft Corporation. Licensed under the MIT License.
 """Tests for risk scoring."""
 
 from datetime import UTC, datetime, timedelta

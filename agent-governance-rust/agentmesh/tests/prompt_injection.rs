@@ -1,3 +1,4 @@
+// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
 use agentmesh::prompt_injection::{
     BuiltInRuleAddition, BuiltInRuleOverrides, DetectionConfig, DetectionOptions, InjectionType,
     PromptInjectionConfig, PromptInjectionDetector, PromptInjectionError, RuleFamily, Sensitivity,
