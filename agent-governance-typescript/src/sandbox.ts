@@ -223,9 +223,11 @@ export class DockerSandboxProvider implements SandboxProvider {
 
     return new Promise<ExecutionHandle>((resolve) => {
       const encoded = Buffer.from(code).toString('base64');
-      // Use 'timeout' command inside container to enforce execution time limit
+      // Use 'timeout' command with SIGKILL to enforce execution time limit.
+      // The default signal (SIGTERM) can be caught/ignored by sandboxed code,
+      // allowing it to bypass the timeout. SIGKILL cannot be caught.
       const execArgs = [
-        'exec', containerId, 'timeout', String(timeoutSeconds),
+        'exec', containerId, 'timeout', '--signal=SIGKILL', String(timeoutSeconds),
         'python3', '-c',
         `import base64; exec(base64.b64decode('${encoded}').decode())`,
       ];
