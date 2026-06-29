@@ -216,7 +216,9 @@ export class DockerSandboxProvider implements SandboxProvider {
     }
 
     const cfg = this.sessionConfigs.get(sessionId) ?? defaultSandboxConfig();
-    const timeoutSeconds = cfg.timeoutSeconds;
+    const rawTimeout = cfg.timeoutSeconds;
+    // NaN slips through Math.max(1, NaN) -> NaN. Validate with Number.isFinite.
+    const timeoutSeconds = Number.isFinite(rawTimeout) && rawTimeout >= 1 ? Math.floor(rawTimeout) : 1;
 
     const executionId = randomUUID();
     const startTime = Date.now();
@@ -226,6 +228,7 @@ export class DockerSandboxProvider implements SandboxProvider {
       // Use 'timeout' command with SIGKILL to enforce execution time limit.
       // The default signal (SIGTERM) can be caught/ignored by sandboxed code,
       // allowing it to bypass the timeout. SIGKILL cannot be caught.
+      // --kill-after is inert when --signal=SIGKILL (SIGKILL cannot be deferred), so omit it.
       const execArgs = [
         'exec', containerId, 'timeout', '--signal=SIGKILL', String(timeoutSeconds),
         'python3', '-c',
@@ -249,7 +252,18 @@ export class DockerSandboxProvider implements SandboxProvider {
         const killed = error !== null && 'killed' in error && (error as { killed: boolean }).killed;
 
         // timeout command exits with 124 when the command times out
-        const timedOut = exitCode === 124;
+        const timedOut = exitCode === 124 || exitCode === 137; // 137 = 128 + SIGKILL (9)
+
+        // If the outer execFile timeout fired (killed=true but not timedOut by timeout command),
+        // the docker exec client was killed but the container process may still be running.
+        // Force-kill the container to ensure cleanup.
+        if (killed && !timedOut && containerId) {
+          try {
+            execSync(`docker kill ${containerId}`, { stdio: 'pipe', timeout: 5_000 });
+          } catch {
+            // Best effort; container may already be gone
+          }
+        }
 
         const result: SandboxResult = {
           success: exitCode === 0,
