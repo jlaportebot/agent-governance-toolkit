@@ -228,19 +228,30 @@ export class DockerSandboxProvider implements SandboxProvider {
 
     return new Promise<ExecutionHandle>((resolve) => {
       const encoded = Buffer.from(code).toString('base64');
-      // Use 'timeout' command with SIGKILL and kill-after to enforce execution time limit.
+      // Use 'timeout' command with SIGTERM then SIGKILL to enforce execution time limit.
       // The default signal (SIGTERM) can be caught/ignored by sandboxed code,
-      // allowing it to bypass the timeout. SIGKILL cannot be caught.
-      // --kill-after=5s sends SIGKILL 5 seconds after the initial signal if the process
-      // hasn't exited, providing a hard backstop.
+      // allowing it to bypass the timeout. We use SIGTERM first (graceful), then
+      // --kill-after=5s sends SIGKILL if the process hasn't exited after 5 seconds.
       const execArgs = [
-        'exec', containerId, 'timeout', '--signal=SIGKILL', '--kill-after=5s', String(timeoutSeconds),
+        'exec', containerId, 'timeout', '--signal=SIGTERM', '--kill-after=5s', String(timeoutSeconds),
         'python3', '-c',
         `import base64; exec(base64.b64decode('${encoded}').decode())`,
       ];
 
       execFile('docker', execArgs, { timeout: (timeoutSeconds + 5) * 1000 }, (error, stdout, stderr) => {
         const durationSeconds = (Date.now() - startTime) / 1000.0;
+
+        // If the outer execFile timeout fired, the docker exec client was killed
+        // but the process inside the container may still be running. Kill the container
+        // to ensure no runaway processes.
+        if (error !== null && 'killed' in error && (error as { killed: boolean }).killed) {
+          try {
+            execSync(`docker kill ${containerId}`, { stdio: 'pipe', timeout: 5_000 });
+          } catch {
+            // Container may already be gone; ignore cleanup failures
+          }
+        }
+
         // Node's ExecException.code can be: a numeric exit code (child exited
         // non-zero), `null` (child killed by a signal — `error.signal` is set
         // instead), or a string like 'ENOENT' (the spawn itself failed). The
