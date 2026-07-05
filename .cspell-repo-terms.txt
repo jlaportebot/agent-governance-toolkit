@@ -780,3 +780,5 @@ posixpath
 pypy
 fastembed
 Hotfixes
+coreutils
+synthesise
