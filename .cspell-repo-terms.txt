@@ -782,3 +782,5 @@ fastembed
 Hotfixes
 coreutils
 synthesise
+SIGTERM
+SIGKILL
